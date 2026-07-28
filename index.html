@@ -54,7 +54,7 @@
 
       <div class="flex items-center gap-1">
         <!-- BOTÓN DESCARGA OFFLINE -->
-        <button id="dl-btn" onclick="startFullBibleDownload()" class="p-2 rounded-full hover:bg-stone-800 text-amber-200 relative" title="Descargar Biblia Completa Offline">
+        <button id="dl-btn" onclick="startFullBibleDownload()" class="p-2 rounded-full hover:bg-stone-800 text-amber-200 relative" title="Guardar para uso offline">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
           <span id="dl-badge" class="hidden absolute -top-1 -right-1 bg-green-500 text-[9px] font-bold text-white px-1 rounded-full">✓</span>
         </button>
@@ -96,17 +96,6 @@
   <!-- CONTENEDOR DE LECTURA -->
   <main class="flex-1 overflow-y-auto px-4 py-4 max-w-2xl mx-auto w-full">
     
-    <!-- BARRA ESTADO DESCARGA -->
-    <div id="dl-progress-bar" class="hidden mb-3 bg-stone-800 p-2.5 rounded-xl text-xs text-amber-300 border border-amber-500/30">
-      <div class="flex justify-between mb-1 font-bold">
-        <span>Descargando Biblia Completa...</span>
-        <span id="dl-percentage">0%</span>
-      </div>
-      <div class="w-full bg-stone-700 h-2 rounded-full overflow-hidden">
-        <div id="dl-progress-fill" class="bg-amber-500 h-full w-0 transition-all duration-200"></div>
-      </div>
-    </div>
-
     <!-- CONTROLES RÁPIDOS -->
     <div class="flex items-center justify-between gap-2 mb-4 bg-amber-100/60 dark:bg-stone-800/60 p-2.5 rounded-xl border border-amber-200/50 dark:border-stone-700">
       <div class="flex items-center gap-1.5">
@@ -162,7 +151,7 @@
         <input type="text" id="search-input" placeholder="Ej: amor, fe, Juan 3:16..." onkeyup="if(event.key==='Enter') executeSearch()" class="w-full bg-stone-100 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600">
       </div>
       <div id="search-results" class="p-3 flex-1 overflow-y-auto space-y-2 text-xs">
-        <p class="text-center text-stone-400 py-6">Escribe palabras clave o pasajes para buscar.</p>
+        <p class="text-center text-stone-400 py-6">Escribe una referencia o frase para buscar.</p>
       </div>
     </div>
   </div>
@@ -281,54 +270,64 @@
       }
     }
 
-    // MOTOR DE DESCARGA BÍBLICA COMPLETA DE 66 LIBROS
+    // MULTI-SERVIDOR EN LA NUBE PARA ASEGURAR CARGA CON INTERNET
+    async function fetchChapterFromOnline(bookName, chapter) {
+      const endpoints = [
+        `https://bible-api.com/${encodeURIComponent(bookName)}+${chapter}?translation=rv1960`,
+        `https://cdn.jsdelivr.net/gh/wldhx/bible-api/bibles/es-rvr1960/books/${encodeURIComponent(bookName)}/chapters/${chapter}.json`
+      ];
+
+      for (let url of endpoints) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3500); // 3.5s timeout
+          const resp = await fetch(url, { signal: controller.signal });
+          clearTimeout(timeoutId);
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data && data.verses) {
+              return data.verses.map(v => ({ v: v.verse, text: v.text.trim() }));
+            }
+          }
+        } catch (e) {}
+      }
+      return null;
+    }
+
     async function startFullBibleDownload() {
       if (state.isDownloadedOffline) {
-        showToast("¡La Biblia ya está totalmente descargada!");
+        showToast("¡La Biblia ya está descargada en tu teléfono!");
         return;
       }
 
-      const pBar = document.getElementById('dl-progress-bar');
-      const pFill = document.getElementById('dl-progress-fill');
-      const pText = document.getElementById('dl-percentage');
-
-      pBar.classList.remove('hidden');
-      showToast("Iniciando descarga completa para uso sin internet...");
-
-      let totalChapters = BIBLE_BOOKS.reduce((acc, b) => acc + b.chapters, 0);
-      let loadedChapters = 0;
-
-      for (let book of BIBLE_BOOKS) {
-        for (let cap = 1; cap <= book.chapters; cap++) {
-          const key = `${book.name}-${cap}`;
-          if (!state.localDatabase[key]) {
-            try {
-              const resp = await fetch(`https://bible-api.com/${encodeURIComponent(book.name)}+${cap}?translation=rv1960`);
-              const data = await resp.json();
-              if (data && data.verses) {
-                state.localDatabase[key] = data.verses.map(v => ({ v: v.verse, text: v.text.trim() }));
-              }
-            } catch (e) {
-              // Si falla la red durante la descarga
-            }
-          }
-          loadedChapters++;
-          let pct = Math.round((loadedChapters / totalChapters) * 100);
-          pFill.style.width = `${pct}%`;
-          pText.innerText = `${pct}%`;
-        }
-      }
-
+      showToast("Descargando base de datos completa...");
+      
       try {
-        localStorage.setItem('rvr1960_full_db', JSON.stringify(state.localDatabase));
-        state.isDownloadedOffline = true;
-        document.getElementById('dl-badge').classList.remove('hidden');
-        showToast("¡Biblia completa guardada en tu teléfono!");
-      } catch (e) {
-        showToast("Espacio insuficiente en memoria para guardar toda la Biblia.");
-      }
+        // Carga ligera del paquete completo comprimido
+        const resp = await fetch("https://raw.githubusercontent.com/thiagobodruk/bible/master/json/es_rvr.json");
+        if (resp.ok) {
+          const data = await resp.json();
+          // Mapeo rápido
+          data.forEach(bookData => {
+            const matchBook = BIBLE_BOOKS.find(b => b.name.toLowerCase().includes(bookData.name.toLowerCase()) || bookData.name.toLowerCase().includes(b.name.toLowerCase()));
+            if (matchBook) {
+              bookData.chapters.forEach((capVerses, cIdx) => {
+                const key = `${matchBook.name}-${cIdx + 1}`;
+                state.localDatabase[key] = capVerses.map((txt, vIdx) => ({ v: vIdx + 1, text: txt }));
+              });
+            }
+          });
 
-      pBar.classList.add('hidden');
+          localStorage.setItem('rvr1960_full_db', JSON.stringify(state.localDatabase));
+          state.isDownloadedOffline = true;
+          document.getElementById('dl-badge').classList.remove('hidden');
+          showToast("¡Biblia descargada! Ya funciona 100% offline.");
+          renderPassage();
+          return;
+        }
+      } catch (e) {}
+
+      showToast("Asegúrate de estar conectado a internet para la descarga inicial.");
     }
 
     function toggleDarkMode() {
@@ -360,7 +359,6 @@
       }
     }
 
-    // CARGA DE CAPÍTULO COMPLETO (HÍBRIDO: SI ESTÁ DESCARGADO U OFFLINE, USA MEMORIA; SINO, USA INTERNET)
     async function renderPassage(targetVerse = null) {
       const book = BIBLE_BOOKS[state.currentBookIndex];
       const passageKey = `${book.name}-${state.currentChapter}`;
@@ -374,19 +372,13 @@
 
       let verses = null;
 
-      // 1. Intentar desde la base local si está descargada
+      // 1. Usar base local descargada si existe
       if (state.localDatabase[passageKey]) {
         verses = state.localDatabase[passageKey];
       } else {
-        // 2. Consulta en vivo por API si hay internet
-        container.innerHTML = `<div class="text-center py-12 text-stone-400 text-sm animate-pulse">Cargando ${titleText} completo...</div>`;
-        try {
-          const resp = await fetch(`https://bible-api.com/${encodeURIComponent(book.name)}+${state.currentChapter}?translation=rv1960`);
-          const data = await resp.json();
-          if (data && data.verses) {
-            verses = data.verses.map(v => ({ v: v.verse, text: v.text.trim() }));
-          }
-        } catch (e) {}
+        // 2. Si hay internet, usar servidores espejo de respaldo
+        container.innerHTML = `<div class="text-center py-12 text-stone-400 text-sm animate-pulse">Cargando ${titleText} en vivo...</div>`;
+        verses = await fetchChapterFromOnline(book.name, state.currentChapter);
       }
 
       if (verses && verses.length > 0) {
@@ -405,7 +397,12 @@
           container.appendChild(p);
         });
       } else {
-        container.innerHTML = `<div class="p-6 text-center text-xs text-amber-700 dark:text-amber-400 bg-amber-100/50 dark:bg-stone-800 rounded-xl">Sin conexión a internet. Toca el botón 💾 en la barra superior cuando tengas Wi-Fi para descargar la Biblia entera a tu teléfono.</div>`;
+        container.innerHTML = `
+          <div class="p-6 text-center text-xs text-amber-800 dark:text-amber-300 bg-amber-100/60 dark:bg-stone-800 rounded-xl space-y-2">
+            <p class="font-bold text-sm">Sin conexión o servidor lento.</p>
+            <p>Toca el icono del disco 💾 arriba a la derecha para descargar la Biblia completa a tu celular y leer sin depender de internet.</p>
+          </div>
+        `;
       }
 
       if (targetVerse) {
@@ -528,7 +525,7 @@
       document.getElementById('bookmark-dropdown').classList.toggle('hidden', typeof force === 'boolean' ? !force : undefined);
     }
 
-    // NAVEGACIÓN Y BUSCADOR REAL
+    // MODALES Y BUSCADOR
     function openNavModal() { document.getElementById('nav-modal').classList.remove('hidden'); backToBooks(); }
     function closeNavModal() { document.getElementById('nav-modal').classList.add('hidden'); }
 
@@ -578,40 +575,35 @@
 
     function toggleSearchModal() { document.getElementById('search-modal').classList.toggle('hidden'); }
 
-    // BUSCADOR AVANZADO (APOYA BÚSQUEDA POR PALABRA EN TODA LA BIBLIA DESCARGADA)
     function executeSearch() {
       const q = document.getElementById('search-input').value.trim().toLowerCase();
       const res = document.getElementById('search-results');
       if (!q) return;
       
       res.innerHTML = '';
-      let matchCount = 0;
+      let count = 0;
 
-      // 1. Búsqueda directa de libro y capítulo/versículo (Ej. "Juan 3:16")
       BIBLE_BOOKS.forEach((b) => {
         if (q.includes(b.name.toLowerCase())) {
           const parts = q.replace(':', ' ').split(' ');
           const cap = parseInt(parts[1]) || 1;
           const verse = parseInt(parts[2]) || 1;
-          
-          matchCount++;
+          count++;
           res.innerHTML += `
             <div onclick="goToCap('${b.id}', ${cap}); renderPassage(${verse}); toggleSearchModal();" class="p-2 bg-stone-100 dark:bg-stone-800 rounded cursor-pointer border border-stone-200 dark:border-stone-700">
               <strong class="text-amber-600 dark:text-amber-400">${b.name} ${cap}${verse > 1 ? ':' + verse : ''}</strong>
-              <p class="text-stone-500">Ir directamente al pasaje</p>
+              <p class="text-stone-500">Ir al pasaje solicitado</p>
             </div>
           `;
         }
       });
 
-      // 2. Búsqueda por palabra clave si la Biblia está descargada
       if (state.isDownloadedOffline && q.length >= 3) {
         Object.keys(state.localDatabase).forEach(key => {
-          if (matchCount > 30) return; // Límite de resultados para velocidad
-          const verses = state.localDatabase[key];
-          verses.forEach(v => {
+          if (count > 25) return;
+          state.localDatabase[key].forEach(v => {
             if (v.text.toLowerCase().includes(q)) {
-              matchCount++;
+              count++;
               const [bName, cap] = key.split('-');
               const bObj = BIBLE_BOOKS.find(b => b.name === bName);
               res.innerHTML += `
@@ -625,14 +617,7 @@
         });
       }
 
-      if (matchCount === 0) {
-        res.innerHTML = `
-          <div class="text-center text-stone-500 py-4">
-            No se encontraron coincidencias.<br>
-            ${!state.isDownloadedOffline ? '<span class="text-amber-500 font-bold">Nota:</span> Toca el botón 💾 arriba para descargar toda la Biblia y permitir búsquedas por texto completo.' : ''}
-          </div>
-        `;
-      }
+      if (count === 0) res.innerHTML = '<p class="text-center text-stone-500 py-4">Ingresa un pasaje como "Juan 3:16" o descarga la Biblia para buscar palabras.</p>';
     }
 
     function showToast(m) {
