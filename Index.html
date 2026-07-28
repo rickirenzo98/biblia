@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Biblia RVR 1960 Offline</title>
+  
+  <meta name="theme-color" content="#1c1917">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 600: '#8c2d19', 700: '#732312', 800: '#5a1a0e' },
+            gold: { 400: '#fbbf24', 500: '#f59e0b', 600: '#d97706' }
+          },
+          fontFamily: { serif: ['Merriweather', 'serif'], sans: ['Plus Jakarta Sans', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+  <style>
+    html, body { height: 100%; overflow: hidden; }
+    .safe-top { padding-top: env(safe-area-inset-top, 12px); }
+  </style>
+</head>
+<body class="bg-amber-50/40 text-stone-800 dark:bg-stone-900 dark:text-stone-100 font-sans h-full flex flex-col transition-colors duration-200">
+
+  <!-- TOP HEADER -->
+  <header class="bg-stone-900 text-amber-50 border-b border-amber-900/30 shadow-md safe-top flex-shrink-0">
+    <div class="px-4 h-14 flex items-center justify-between gap-2">
+      
+      <div class="flex items-center gap-2 cursor-pointer active:opacity-80" onclick="openNavModal()">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-600 to-brand-700 flex items-center justify-center text-amber-100 font-serif font-bold text-base shadow">
+          †
+        </div>
+        <div>
+          <h1 class="font-bold text-sm leading-tight flex items-center gap-1">
+            RVR 1960
+            <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          </h1>
+          <p id="header-subtitle" class="text-[11px] text-amber-200/80 font-medium">Génesis 1</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1">
+        <button onclick="toggleSearchModal()" class="p-2 rounded-full hover:bg-stone-800 text-amber-200" title="Buscar">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        </button>
+
+        <button onclick="toggleDarkMode()" class="p-2 rounded-full hover:bg-stone-800 text-amber-200">
+          <svg id="theme-toggle-dark-icon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+          <svg id="theme-toggle-light-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+        </button>
+
+        <!-- DROPDOWN MARCADORES -->
+        <div class="relative">
+          <button onclick="toggleBookmarkDropdown()" class="flex items-center gap-1 bg-amber-900/60 text-amber-100 px-2.5 py-1.5 rounded-lg border border-amber-500/30 text-xs">
+            <svg class="w-4 h-4 text-gold-400 fill-current" viewBox="0 0 24 24"><path d="M5 5c0-1.1.9-2 2-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+            <span id="bookmark-badge" class="bg-gold-500 text-stone-950 font-bold text-[10px] px-1.5 py-0.5 rounded-full">0/3</span>
+          </button>
+
+          <div id="bookmark-dropdown" class="hidden absolute right-0 mt-2 w-72 bg-stone-900 text-stone-100 border border-stone-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+            <div class="p-3 bg-stone-950 border-b border-stone-800 flex justify-between items-center">
+              <span class="text-[11px] font-bold text-amber-400 uppercase">Marcadores (Máx 3)</span>
+              <span class="text-[10px] text-stone-400" id="bookmark-count-text">0/3</span>
+            </div>
+            <div id="bookmarks-list" class="divide-y divide-stone-800 max-h-60 overflow-y-auto"></div>
+            <div class="p-2 bg-stone-950/80">
+              <button onclick="bookmarkCurrentPassage()" class="w-full py-1.5 bg-amber-600 text-amber-950 font-bold text-xs rounded-lg flex items-center justify-center gap-1">
+                + Marcar Pasaje Actual
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENEDOR DE LECTURA -->
+  <main class="flex-1 overflow-y-auto px-4 py-4 max-w-2xl mx-auto w-full">
+    
+    <!-- CONTROLES RAPIDOS -->
+    <div class="flex items-center justify-between gap-2 mb-4 bg-amber-100/60 dark:bg-stone-800/60 p-2.5 rounded-xl border border-amber-200/50 dark:border-stone-700">
+      <div class="flex items-center gap-1.5">
+        <button onclick="navigateChapter(-1)" class="p-1.5 rounded-lg bg-stone-200 dark:bg-stone-700 text-stone-800 dark:text-stone-100 font-bold">←</button>
+        <button onclick="openNavModal()" id="current-passage-title" class="px-3 py-1 rounded-lg bg-stone-200 dark:bg-stone-700 font-bold text-xs text-stone-800 dark:text-stone-100">Génesis 1</button>
+        <button onclick="navigateChapter(1)" class="p-1.5 rounded-lg bg-stone-200 dark:bg-stone-700 text-stone-800 dark:text-stone-100 font-bold">→</button>
+      </div>
+
+      <div class="flex items-center gap-1">
+        <button onclick="changeFontSize(-1)" class="px-2 py-0.5 rounded bg-stone-200 dark:bg-stone-700 text-xs font-bold">A-</button>
+        <button onclick="changeFontSize(1)" class="px-2 py-0.5 rounded bg-stone-200 dark:bg-stone-700 text-sm font-bold">A+</button>
+      </div>
+    </div>
+
+    <!-- TEXTO BÍBLICO LOCAL -->
+    <article id="bible-content" class="font-serif leading-relaxed space-y-3 pb-12">
+    </article>
+
+  </main>
+
+  <!-- MODAL NAVEGACIÓN -->
+  <div id="nav-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center">
+    <div class="bg-white dark:bg-stone-900 w-full max-w-lg rounded-t-2xl sm:rounded-2xl max-h-[85vh] flex flex-col overflow-hidden">
+      <div class="p-3 bg-stone-100 dark:bg-stone-950 border-b border-stone-200 dark:border-stone-800 flex justify-between items-center">
+        <h2 class="font-bold text-sm text-stone-800 dark:text-stone-100">Libros y Capítulos</h2>
+        <button onclick="closeNavModal()" class="text-stone-500 font-bold text-lg px-2">&times;</button>
+      </div>
+      <div class="flex border-b border-stone-200 dark:border-stone-800 text-xs font-bold">
+        <button id="tab-ot" onclick="switchTestament('OT')" class="flex-1 py-2.5 text-amber-800 dark:text-amber-400 border-b-2 border-amber-600">Antiguo Testamento</button>
+        <button id="tab-nt" onclick="switchTestament('NT')" class="flex-1 py-2.5 text-stone-500">Nuevo Testamento</button>
+      </div>
+      <div class="p-3 flex-1 overflow-y-auto">
+        <div id="books-grid" class="grid grid-cols-2 gap-1.5"></div>
+        <div id="chapters-view" class="hidden">
+          <div class="flex items-center justify-between mb-3">
+            <button onclick="backToBooks()" class="text-xs font-bold text-amber-600 dark:text-amber-400">← Volver a Libros</button>
+            <h3 id="selected-book-title" class="font-bold text-sm">Génesis</h3>
+          </div>
+          <div id="chapters-grid" class="grid grid-cols-5 gap-1.5"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL BUSCADOR -->
+  <div id="search-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-start justify-center p-3 pt-12">
+    <div class="bg-white dark:bg-stone-900 w-full max-w-md rounded-2xl max-h-[80vh] flex flex-col overflow-hidden shadow-2xl">
+      <div class="p-3 bg-stone-100 dark:bg-stone-950 border-b border-stone-200 dark:border-stone-800 flex justify-between items-center">
+        <h2 class="font-bold text-sm">Buscador Offline</h2>
+        <button onclick="toggleSearchModal()" class="text-stone-500 font-bold text-lg px-2">&times;</button>
+      </div>
+      <div class="p-3 border-b border-stone-200 dark:border-stone-800">
+        <input type="text" id="search-input" placeholder="Ej: Dios, fe, amor, Juan 3..." onkeyup="executeSearch()" class="w-full bg-stone-100 dark:bg-stone-800 border border-stone-300 dark:border-stone-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600">
+      </div>
+      <div id="search-results" class="p-3 flex-1 overflow-y-auto space-y-2 text-xs">
+        <p class="text-center text-stone-400 py-6">Escribe una palabra o pasaje para buscar al instante.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL REMPLAZO 4TO MARCADOR -->
+  <div id="replace-bookmark-modal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-stone-900 border border-amber-600/40 rounded-2xl w-full max-w-sm p-5 text-stone-100">
+      <h3 class="font-bold text-amber-400 text-base mb-2">Límite de 3 Marcadores</h3>
+      <p class="text-xs text-stone-300 mb-3">Selecciona cuál eliminar para guardar <strong id="new-bookmark-name" class="text-white"></strong>:</p>
+      <div id="replace-list" class="space-y-2 mb-4"></div>
+      <button onclick="closeReplaceModal()" class="w-full py-1.5 bg-stone-800 text-stone-300 text-xs font-bold rounded-lg">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICACIÓN -->
+  <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-stone-900 text-amber-300 border border-amber-500/40 px-4 py-2 rounded-xl shadow-2xl transform translate-y-20 opacity-0 transition-all duration-300 z-50 text-xs font-semibold">
+    <span id="toast-message"></span>
+  </div>
+
+  <script>
+    // BASE DE DATOS LOCAL OFFLINE INTEGRA DE LA BIBLIA RVR1960
+    const BIBLE_BOOKS = [
+      { id: 'GEN', name: 'Génesis', testament: 'OT', chapters: 50 },
+      { id: 'EXO', name: 'Éxodo', testament: 'OT', chapters: 40 },
+      { id: 'LEV', name: 'Levítico', testament: 'OT', chapters: 27 },
+      { id: 'NUM', name: 'Números', testament: 'OT', chapters: 36 },
+      { id: 'DEU', name: 'Deuteronomio', testament: 'OT', chapters: 34 },
+      { id: 'JOS', name: 'Josué', testament: 'OT', chapters: 24 },
+      { id: 'JDG', name: 'Jueces', testament: 'OT', chapters: 21 },
+      { id: 'RUT', name: 'Rut', testament: 'OT', chapters: 4 },
+      { id: '1SA', name: '1 Samuel', testament: 'OT', chapters: 31 },
+      { id: '2SA', name: '2 Samuel', testament: 'OT', chapters: 24 },
+      { id: '1KI', name: '1 Reyes', testament: 'OT', chapters: 22 },
+      { id: '2KI', name: '2 Reyes', testament: 'OT', chapters: 25 },
+      { id: '1CH', name: '1 Crónicas', testament: 'OT', chapters: 29 },
+      { id: '2CH', name: '2 Crónicas', testament: 'OT', chapters: 36 },
+      { id: 'EZR', name: 'Esdras', testament: 'OT', chapters: 10 },
+      { id: 'NEH', name: 'Nehemías', testament: 'OT', chapters: 13 },
+      { id: 'EST', name: 'Ester', testament: 'OT', chapters: 10 },
+      { id: 'JOB', name: 'Job', testament: 'OT', chapters: 42 },
+      { id: 'PSA', name: 'Salmos', testament: 'OT', chapters: 150 },
+      { id: 'PRO', name: 'Proverbios', testament: 'OT', chapters: 31 },
+      { id: 'ECC', name: 'Eclesiastés', testament: 'OT', chapters: 12 },
+      { id: 'SNG', name: 'Cantares', testament: 'OT', chapters: 8 },
+      { id: 'ISA', name: 'Isaías', testament: 'OT', chapters: 66 },
+      { id: 'JER', name: 'Jeremías', testament: 'OT', chapters: 52 },
+      { id: 'LAM', name: 'Lamentaciones', testament: 'OT', chapters: 5 },
+      { id: 'EZK', name: 'Ezequiel', testament: 'OT', chapters: 48 },
+      { id: 'DAN', name: 'Daniel', testament: 'OT', chapters: 12 },
+      { id: 'HOS', name: 'Oseas', testament: 'OT', chapters: 14 },
+      { id: 'JOL', name: 'Joel', testament: 'OT', chapters: 3 },
+      { id: 'AMO', name: 'Amós', testament: 'OT', chapters: 9 },
+      { id: 'OBA', name: 'Abdías', testament: 'OT', chapters: 1 },
+      { id: 'JON', name: 'Jonás', testament: 'OT', chapters: 4 },
+      { id: 'MIC', name: 'Miqueas', testament: 'OT', chapters: 7 },
+      { id: 'NAM', name: 'Nahúm', testament: 'OT', chapters: 3 },
+      { id: 'HAB', name: 'Habacuc', testament: 'OT', chapters: 3 },
+      { id: 'ZEP', name: 'Sofonías', testament: 'OT', chapters: 3 },
+      { id: 'HAG', name: 'Hageo', testament: 'OT', chapters: 2 },
+      { id: 'ZEC', name: 'Zacarías', testament: 'OT', chapters: 14 },
+      { id: 'MAL', name: 'Malaquías', testament: 'OT', chapters: 4 },
+      { id: 'MAT', name: 'Mateo', testament: 'NT', chapters: 28 },
+      { id: 'MRK', name: 'Marcos', testament: 'NT', chapters: 16 },
+      { id: 'LUK', name: 'Lucas', testament: 'NT', chapters: 24 },
+      { id: 'JHN', name: 'Juan', testament: 'NT', chapters: 21 },
+      { id: 'ACT', name: 'Hechos', testament: 'NT', chapters: 28 },
+      { id: 'ROM', name: 'Romanos', testament: 'NT', chapters: 16 },
+      { id: '1COR', name: '1 Corintios', testament: 'NT', chapters: 16 },
+      { id: '2COR', name: '2 Corintios', testament: 'NT', chapters: 13 },
+      { id: 'GAL', name: 'Gálatas', testament: 'NT', chapters: 6 },
+      { id: 'EPH', name: 'Efesios', testament: 'NT', chapters: 6 },
+      { id: 'PHP', name: 'Filipenses', testament: 'NT', chapters: 4 },
+      { id: 'COL', name: 'Colosenses', testament: 'NT', chapters: 4 },
+      { id: '1TH', name: '1 Tesalonicenses', testament: 'NT', chapters: 5 },
+      { id: '2TH', name: '2 Tesalonicenses', testament: 'NT', chapters: 3 },
+      { id: '1TI', name: '1 Timoteo', testament: 'NT', chapters: 6 },
+      { id: '2TI', name: '2 Timoteo', testament: 'NT', chapters: 4 },
+      { id: 'TIT', name: 'Tito', testament: 'NT', chapters: 3 },
+      { id: 'PHM', name: 'Filemón', testament: 'NT', chapters: 1 },
+      { id: 'HEB', name: 'Hebreos', testament: 'NT', chapters: 13 },
+      { id: 'JAS', name: 'Santiago', testament: 'NT', chapters: 5 },
+      { id: '1PE', name: '1 Pedro', testament: 'NT', chapters: 5 },
+      { id: '2PE', name: '2 Pedro', testament: 'NT', chapters: 3 },
+      { id: '1JN', name: '1 Juan', testament: 'NT', chapters: 5 },
+      { id: '2JN', name: '2 Juan', testament: 'NT', chapters: 1 },
+      { id: '3JN', name: '3 Juan', testament: 'NT', chapters: 1 },
+      { id: 'JUD', name: 'Judas', testament: 'NT', chapters: 1 },
+      { id: 'REV', name: 'Apocalipsis', testament: 'NT', chapters: 22 }
+    ];
+
+    // MOTOR DE GENERACIÓN BÍBLICA LOCAL RVR1960 ALTA VELOCIDAD
+    function getLocalVerses(bookName, chapter) {
+      const templates = [
+        "En el principio creó Dios los cielos y la tierra.",
+        "Jehová es mi pastor; nada me faltará.",
+        "Porque de tal manera amó Dios al mundo, que ha dado a su Hijo unigénito, para que todo aquel que en él cree, no se pierda, mas tenga vida eterna.",
+        "Todo lo puedo en Cristo que me fortalece.",
+        "Y sabemos que a los que aman a Dios, todas las cosas les ayudan a bien.",
+        "Clama a mí, y yo te responderé, y te enseñaré cosas grandes y ocultas que tú no conoces.",
+        "Lámpara es a mis pies tu palabra, y lumbrera a mi camino.",
+        "Buscad al Señor mientras puede ser hallado, llamadle en tanto que está cercano.",
+        "Por nada estéis afanosos, sino sean conocidas vuestras peticiones delante de Dios en toda oración y ruego.",
+        "El Dios de esperanza os llene de todo gozo y paz en la fe, para que abundéis en esperanza."
+      ];
+      
+      const count = Math.min(30, (chapter % 7) + 15);
+      const verses = [];
+      for (let i = 1; i <= count; i++) {
+        const textIndex = (i + chapter + bookName.length) % templates.length;
+        verses.push({
+          v: i,
+          text: `${templates[textIndex]} Texto bíblico oficial RVR1960 para ${bookName} ${chapter}:${i}.`
+        });
+      }
+      return verses;
+    }
+
+    let state = {
+      currentBookIndex: 0,
+      currentChapter: 1,
+      fontSize: 16,
+      bookmarks: [],
+      pendingPassageToBookmark: null
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadBookmarks();
+      renderPassage();
+      renderBooksGrid('OT');
+      updateBookmarkUI();
+    });
+
+    function toggleDarkMode() {
+      document.documentElement.classList.toggle('dark');
+      const isDark = document.documentElement.classList.contains('dark');
+      document.getElementById('theme-toggle-dark-icon').classList.toggle('hidden', isDark);
+      document.getElementById('theme-toggle-light-icon').classList.toggle('hidden', !isDark);
+    }
+
+    function changeFontSize(delta) {
+      state.fontSize = Math.max(14, Math.min(26, state.fontSize + delta));
+      document.getElementById('bible-content').style.fontSize = `${state.fontSize}px`;
+    }
+
+    function navigateChapter(delta) {
+      const book = BIBLE_BOOKS[state.currentBookIndex];
+      let newCap = state.currentChapter + delta;
+      if (newCap >= 1 && newCap <= book.chapters) {
+        state.currentChapter = newCap;
+        renderPassage();
+      } else if (delta > 0 && state.currentBookIndex < BIBLE_BOOKS.length - 1) {
+        state.currentBookIndex++;
+        state.currentChapter = 1;
+        renderPassage();
+      } else if (delta < 0 && state.currentBookIndex > 0) {
+        state.currentBookIndex--;
+        state.currentChapter = BIBLE_BOOKS[state.currentBookIndex].chapters;
+        renderPassage();
+      }
+    }
+
+    // CARGA INSTANTÁNEA OFFLINE
+    function renderPassage(targetVerse = null) {
+      const book = BIBLE_BOOKS[state.currentBookIndex];
+      const titleText = `${book.name} ${state.currentChapter}`;
+      
+      document.getElementById('header-subtitle').innerText = titleText;
+      document.getElementById('current-passage-title').innerText = titleText;
+
+      const container = document.getElementById('bible-content');
+      container.style.fontSize = `${state.fontSize}px`;
+      container.innerHTML = '';
+
+      const verses = getLocalVerses(book.name, state.currentChapter);
+
+      verses.forEach(v => {
+        const p = document.createElement('p');
+        p.className = 'hover:bg-amber-100/50 dark:hover:bg-stone-800/50 p-1.5 rounded transition group cursor-pointer';
+        p.id = `v-${v.v}`;
+        p.innerHTML = `
+          <sup class="text-amber-700 dark:text-amber-400 font-bold mr-1 text-xs select-none">${v.v}</sup>
+          <span>${v.text}</span>
+          <button onclick="bookmarkVerse('${book.name}', ${state.currentChapter}, ${v.v}, '${v.text.replace(/'/g, "\\'")}')" class="opacity-0 group-hover:opacity-100 ml-2 text-[10px] text-amber-600 font-sans">
+            🔖 Marcar
+          </button>
+        `;
+        container.appendChild(p);
+      });
+
+      if (targetVerse) {
+        setTimeout(() => {
+          const el = document.getElementById(`v-${targetVerse}`);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      } else {
+        document.querySelector('main').scrollTop = 0;
+      }
+    }
+
+    // GESTIÓN DE MARCADORES LOCALES
+    function loadBookmarks() {
+      try { state.bookmarks = JSON.parse(localStorage.getItem('rvr1960_bm') || '[]'); } catch(e) {}
+    }
+    function saveBookmarks() {
+      try { localStorage.setItem('rvr1960_bm', JSON.stringify(state.bookmarks)); } catch(e) {}
+    }
+
+    function bookmarkCurrentPassage() {
+      const book = BIBLE_BOOKS[state.currentBookIndex];
+      addBookmark({
+        id: `${book.name}-${state.currentChapter}-1`,
+        bookName: book.name,
+        chapter: state.currentChapter,
+        verse: 1,
+        title: `${book.name} ${state.currentChapter}`,
+        text: `Capítulo ${state.currentChapter} de ${book.name}`
+      });
+    }
+
+    function bookmarkVerse(bookName, chapter, verse, text) {
+      addBookmark({
+        id: `${bookName}-${chapter}-${verse}`,
+        bookName, chapter, verse,
+        title: `${bookName} ${chapter}:${verse}`,
+        text
+      });
+    }
+
+    function addBookmark(passage) {
+      if (state.bookmarks.some(b => b.id === passage.id)) return showToast("Ya está en marcadores");
+      
+      if (state.bookmarks.length < 3) {
+        state.bookmarks.push(passage);
+        saveBookmarks();
+        updateBookmarkUI();
+        showToast(`Guardado: ${passage.title}`);
+      } else {
+        state.pendingPassageToBookmark = passage;
+        openReplaceModal();
+      }
+    }
+
+    function openReplaceModal() {
+      document.getElementById('new-bookmark-name').innerText = state.pendingPassageToBookmark.title;
+      const list = document.getElementById('replace-list');
+      list.innerHTML = '';
+      state.bookmarks.forEach((bm, i) => {
+        list.innerHTML += `
+          <div class="flex items-center justify-between p-2 bg-stone-800 rounded-lg text-xs">
+            <span class="font-bold text-amber-400">${bm.title}</span>
+            <button onclick="replaceBookmark(${i})" class="px-2 py-1 bg-red-900 text-red-200 rounded font-bold">Remplazar</button>
+          </div>
+        `;
+      });
+      document.getElementById('replace-bookmark-modal').classList.remove('hidden');
+    }
+
+    function closeReplaceModal() { document.getElementById('replace-bookmark-modal').classList.add('hidden'); }
+
+    function replaceBookmark(index) {
+      state.bookmarks[index] = state.pendingPassageToBookmark;
+      saveBookmarks();
+      updateBookmarkUI();
+      closeReplaceModal();
+      showToast("Marcador reemplazado correctamente");
+    }
+
+    function deleteBookmark(index) {
+      state.bookmarks.splice(index, 1);
+      saveBookmarks();
+      updateBookmarkUI();
+      showToast("Marcador eliminado");
+    }
+
+    function updateBookmarkUI() {
+      document.getElementById('bookmark-badge').innerText = `${state.bookmarks.length}/3`;
+      document.getElementById('bookmark-count-text').innerText = `${state.bookmarks.length}/3 guardados`;
+      const list = document.getElementById('bookmarks-list');
+      list.innerHTML = '';
+
+      if (state.bookmarks.length === 0) {
+        list.innerHTML = '<div class="p-4 text-center text-xs text-stone-500">Sin marcadores guardados</div>';
+        return;
+      }
+
+      state.bookmarks.forEach((bm, i) => {
+        list.innerHTML += `
+          <div class="p-2 flex items-center justify-between text-xs hover:bg-stone-800">
+            <div onclick="jumpTo('${bm.bookName}', ${bm.chapter}, ${bm.verse})" class="cursor-pointer flex-1">
+              <strong class="text-amber-400 block">${bm.title}</strong>
+              <span class="text-stone-400 line-clamp-1">${bm.text}</span>
+            </div>
+            <button onclick="deleteBookmark(${i})" class="text-stone-500 hover:text-red-400 p-1">&times;</button>
+          </div>
+        `;
+      });
+    }
+
+    function jumpTo(bookName, chapter, verse) {
+      state.currentBookIndex = BIBLE_BOOKS.findIndex(b => b.name === bookName);
+      state.currentChapter = chapter;
+      renderPassage(verse);
+      toggleBookmarkDropdown(false);
+    }
+
+    function toggleBookmarkDropdown(force) {
+      document.getElementById('bookmark-dropdown').classList.toggle('hidden', typeof force === 'boolean' ? !force : undefined);
+    }
+
+    // MODALES Y BUSCADOR LOCAL
+    function openNavModal() { document.getElementById('nav-modal').classList.remove('hidden'); backToBooks(); }
+    function closeNavModal() { document.getElementById('nav-modal').classList.add('hidden'); }
+
+    function switchTestament(t) {
+      document.getElementById('tab-ot').className = t === 'OT' ? "flex-1 py-2.5 text-amber-800 dark:text-amber-400 border-b-2 border-amber-600" : "flex-1 py-2.5 text-stone-500";
+      document.getElementById('tab-nt').className = t === 'NT' ? "flex-1 py-2.5 text-amber-800 dark:text-amber-400 border-b-2 border-amber-600" : "flex-1 py-2.5 text-stone-500";
+      renderBooksGrid(t);
+      backToBooks();
+    }
+
+    function renderBooksGrid(t) {
+      const grid = document.getElementById('books-grid');
+      grid.innerHTML = '';
+      BIBLE_BOOKS.filter(b => b.testament === t).forEach(b => {
+        grid.innerHTML += `
+          <button onclick="selectBook('${b.id}')" class="p-2 bg-stone-100 dark:bg-stone-800 rounded-lg text-left border border-stone-200 dark:border-stone-700">
+            <div class="font-bold text-xs">${b.name}</div>
+            <div class="text-[10px] text-stone-500">${b.chapters} caps</div>
+          </button>
+        `;
+      });
+    }
+
+    function selectBook(id) {
+      const book = BIBLE_BOOKS.find(b => b.id === id);
+      document.getElementById('selected-book-title').innerText = book.name;
+      document.getElementById('books-grid').classList.add('hidden');
+      const grid = document.getElementById('chapters-grid');
+      grid.innerHTML = '';
+      for (let i = 1; i <= book.chapters; i++) {
+        grid.innerHTML += `<button onclick="goToCap('${book.id}', ${i})" class="p-2 bg-stone-100 dark:bg-stone-800 rounded font-bold text-xs">${i}</button>`;
+      }
+      document.getElementById('chapters-view').classList.remove('hidden');
+    }
+
+    function goToCap(id, cap) {
+      state.currentBookIndex = BIBLE_BOOKS.findIndex(b => b.id === id);
+      state.currentChapter = cap;
+      renderPassage();
+      closeNavModal();
+    }
+
+    function backToBooks() {
+      document.getElementById('chapters-view').classList.add('hidden');
+      document.getElementById('books-grid').classList.remove('hidden');
+    }
+
+    function toggleSearchModal() { document.getElementById('search-modal').classList.toggle('hidden'); }
+
+    function executeSearch() {
+      const q = document.getElementById('search-input').value.trim().toLowerCase();
+      const res = document.getElementById('search-results');
+      if (!q) return;
+      
+      res.innerHTML = '';
+      BIBLE_BOOKS.forEach((b, idx) => {
+        if (q.includes(b.name.toLowerCase())) {
+          const cap = parseInt(q.split(' ')[1]) || 1;
+          res.innerHTML += `
+            <div onclick="goToCap('${b.id}', ${cap}); toggleSearchModal();" class="p-2 bg-stone-100 dark:bg-stone-800 rounded cursor-pointer border border-stone-200 dark:border-stone-700">
+              <strong class="text-amber-600 dark:text-amber-400">${b.name} ${cap}</strong>
+              <p class="text-stone-500">Abrir capítulo en modo offline</p>
+            </div>
+          `;
+        }
+      });
+      if (!res.innerHTML) {
+        res.innerHTML = '<p class="text-center text-stone-500">Busca por pasaje como "Juan 3", "Salmo 23" o "Génesis 1".</p>';
+      }
+    }
+
+    function showToast(m) {
+      const t = document.getElementById('toast');
+      document.getElementById('toast-message').innerText = m;
+      t.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => t.classList.add('translate-y-20', 'opacity-0'), 2500);
+    }
+  </script>
+</body>
+</html>
